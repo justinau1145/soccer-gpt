@@ -214,3 +214,10 @@ soccer.db
 
 # Ignore testing files
 test_*.py
+
+# Ignore data
+data/
+vector_db/
+
+# Ignore .DS_Store files
+.DS_Store

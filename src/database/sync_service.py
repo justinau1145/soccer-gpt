@@ -13,7 +13,7 @@ load_dotenv()
 # Configurations
 API_KEY = os.getenv('FOOTBALL_DATA_API_KEY')
 BASE_URL = 'https://api.football-data.org/v4'
-DB_URL = os.getenv('DATABASE_URL', 'sqlite:///soccer.db')
+DB_URL = os.getenv('DATABASE_URL', 'sqlite:///data/soccer.db')
 HEADERS = {'X-Auth-Token': API_KEY}
 
 # Validate API key

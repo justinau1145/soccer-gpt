@@ -83,6 +83,7 @@ def sync_teams(league_code):
             existing_team.tla = t['tla']
             existing_team.venue = t['venue']
             existing_team.league_id = league.id
+            existing_team.league_name = league.name
         else:
             team = Team(
                 api_id=t['id'],
@@ -90,12 +91,64 @@ def sync_teams(league_code):
                 short_name=t['shortName'],
                 tla=t['tla'],
                 venue=t['venue'],
-                league_id=league.id
+                league_id=league.id,
+                league_name=league.name
             )
             session.add(team)
     
     session.commit()
     print(f"Teams for {league_code} synced.")
+
+def sync_top_scorers(league_code):
+    """Syncs top scorers for a specific league."""
+    data = fetch_data(f'competitions/{league_code}/scorers')
+    if not data: return
+    
+    league = session.query(League).filter_by(code=league_code).first()
+    if not league:
+        print(f"League {league_code} not found. Run sync_leagues() first.")
+        return
+    
+    # Create team lookup map
+    team_map = {t.api_id: t.id for t in session.query(Team).filter_by(league_id=league.id).all()}
+    
+    for scorer in data['scorers']:
+        player_data = scorer['player']
+        team_api_id = scorer['team']['id']
+        local_team_id = team_map.get(team_api_id)
+        
+        if not local_team_id:
+            continue
+        
+        # Query for existing player
+        existing_player = session.query(Player).filter_by(api_id=player_data['id']).first()
+        
+        if existing_player:
+            existing_player.name = player_data['name']
+            existing_player.position = player_data.get('position')
+            existing_player.nationality = player_data.get('nationality')
+            existing_player.team_id = local_team_id
+            existing_player.team_name = scorer['team']['name']
+            existing_player.goals = scorer.get('goals', 0)
+            existing_player.assists = scorer.get('assists', 0)
+            existing_player.matches_played = scorer.get('playedMatches', 0)
+        else:
+            player = Player(
+                api_id=player_data['id'],
+                name=player_data['name'],
+                position=player_data.get('position'),
+                date_of_birth=datetime.strptime(player_data['dateOfBirth'], "%Y-%m-%d").date() if player_data.get('dateOfBirth') else None,
+                nationality=player_data.get('nationality'),
+                team_id=local_team_id,
+                team_name=scorer['team']['name'],
+                goals=scorer.get('goals', 0),
+                assists=scorer.get('assists', 0),
+                matches_played=scorer.get('playedMatches', 0)
+            )
+            session.add(player)
+    
+    session.commit()
+    print(f"Top scorers for {league_code} synced successfully.")
 
 def sync_matches(league_code):
     """Syncs matches for a specific league."""
@@ -118,12 +171,15 @@ def sync_matches(league_code):
         
         if existing_match:
             existing_match.league_id = league.id
+            existing_match.league_name = league.name
             existing_match.season = str(m['season']['startDate'][:4])
             existing_match.matchday = m.get('matchday')
             existing_match.stage = m.get('stage')
             existing_match.group = m.get('group')
             existing_match.home_team_id = local_home_id
             existing_match.away_team_id = local_away_id
+            existing_match.home_team_name = m['homeTeam']['name']
+            existing_match.away_team_name = m['awayTeam']['name']
             existing_match.utc_date = dt_object
             existing_match.status = m['status']
             existing_match.duration = m['score'].get('duration')
@@ -140,12 +196,15 @@ def sync_matches(league_code):
             match = Match(
                 api_id=m['id'],
                 league_id=league.id,
+                league_name=league.name,
                 season=str(m['season']['startDate'][:4]),
                 matchday=m.get('matchday'),
                 stage=m.get('stage'),
                 group=m.get('group'),
                 home_team_id=local_home_id,
                 away_team_id=local_away_id,
+                home_team_name=m['homeTeam']['name'],
+                away_team_name=m['awayTeam']['name'],
                 utc_date=dt_object,
                 status=m['status'],
                 duration=m['score'].get('duration'),
@@ -191,7 +250,9 @@ def sync_standings(league_code):
             # Query for existing standing
             existing_standing = session.query(Standing).filter_by(
                 league_id=league.id,
+                league_name=league.name,
                 team_id=local_team_id,
+                team_name=entry['team']['name'],
                 type=standing_table_type,
                 group=standing_group
             ).first()
@@ -211,7 +272,9 @@ def sync_standings(league_code):
             else:
                 standing = Standing(
                     league_id=league.id,
+                    league_name=league.name,
                     team_id=local_team_id,
+                    team_name=entry['team']['name'],
                     season=str(data['season']['startDate'][:4]),
                     group=standing_group,
                     type=standing_table_type,
@@ -231,55 +294,6 @@ def sync_standings(league_code):
     session.commit()
     print(f"Standings for {league_code} synced successfully.")
 
-def sync_top_scorers(league_code):
-    """Syncs top scorers for a specific league."""
-    data = fetch_data(f'competitions/{league_code}/scorers')
-    if not data: return
-    
-    league = session.query(League).filter_by(code=league_code).first()
-    if not league:
-        print(f"League {league_code} not found. Run sync_leagues() first.")
-        return
-    
-    # Create team lookup map
-    team_map = {t.api_id: t.id for t in session.query(Team).filter_by(league_id=league.id).all()}
-    
-    for scorer in data['scorers']:
-        player_data = scorer['player']
-        team_api_id = scorer['team']['id']
-        local_team_id = team_map.get(team_api_id)
-        
-        if not local_team_id:
-            continue
-        
-        # Query for existing player
-        existing_player = session.query(Player).filter_by(api_id=player_data['id']).first()
-        
-        if existing_player:
-            existing_player.name = player_data['name']
-            existing_player.position = player_data.get('position')
-            existing_player.nationality = player_data.get('nationality')
-            existing_player.team_id = local_team_id
-            existing_player.goals = scorer.get('goals', 0)
-            existing_player.assists = scorer.get('assists', 0)
-            existing_player.matches_played = scorer.get('playedMatches', 0)
-        else:
-            player = Player(
-                api_id=player_data['id'],
-                name=player_data['name'],
-                position=player_data.get('position'),
-                date_of_birth=datetime.strptime(player_data['dateOfBirth'], "%Y-%m-%d").date() if player_data.get('dateOfBirth') else None,
-                nationality=player_data.get('nationality'),
-                team_id=local_team_id,
-                goals=scorer.get('goals', 0),
-                assists=scorer.get('assists', 0),
-                matches_played=scorer.get('playedMatches', 0)
-            )
-            session.add(player)
-    
-    session.commit()
-    print(f"Top scorers for {league_code} synced successfully.")
-
 
 if __name__ == "__main__":
     # Initialize DB tables if they don't exist
@@ -288,7 +302,7 @@ if __name__ == "__main__":
     sync_leagues()
 
     # Test syncing with premier league (PL)
-    sync_teams('PL')
-    sync_matches('PL')
-    sync_standings('PL')
-    sync_top_scorers('PL')
+    sync_teams('PD')
+    sync_matches('PD')
+    sync_standings('PD')
+    sync_top_scorers('PD')

@@ -55,7 +55,11 @@ def sql_node(state: AgentState):
    
    prompt = ChatPromptTemplate.from_template(sql_prompt)
    chain = prompt | sql_llm
-   response = chain.invoke({"question": question, "route_to": route_to})
+   response = chain.invoke({
+       "question": question, 
+       "route_to": route_to,
+       "schema_context": sql_tool.schema_context
+   })
    refined_sql_question = response.content
    
    print(f"[DEBUG] Refined SQL question: {refined_sql_question}")
@@ -133,7 +137,7 @@ soccer_gpt = workflow.compile()
 
 
 if __name__ == "__main__":
-   question = "Why is Bayern Munich the best team in Germany?"
+   question = "Which player has the most goals in Ligue 1?"
    response = soccer_gpt.invoke({
        "messages": [HumanMessage(content=question)]
    })

@@ -30,11 +30,6 @@ class SQLTool:
             table_info = self.db.get_table_info([table])
             schema_parts.append(f"\n{table_info}")
 
-        schema_parts.append("\n\nIMPORTANT NOTES:")
-        schema_parts.append("- The 'season' column is an INTEGER representing the year (e.g., 2025 for the 2024-2025 season)")
-        schema_parts.append("- The 'winner' column in matches has values: 'HOME_TEAM', 'AWAY_TEAM', or 'DRAW'")
-        schema_parts.append("- When considering results from matches, determine if the team in question is the home or away team")
-
         return "\n".join(schema_parts)
 
     @staticmethod
@@ -52,18 +47,12 @@ class SQLTool:
         Query the database with a natural language question.
         """
         try:
-            prompt = f"""Schema context: {self.schema_context}
-
-USER QUESTION: {question}
-
-Generate a SQLite query to answer this question. Return ONLY the raw SQL query 
-with no explanation, no markdown formatting, and no additional text.
-
-A given team, legaue, player, etc... could go by a different names not found in 
-the database, so use the schema context to determine if what you are looking for
-might go by a different name in the database or not exist entirely.
-
-"""
+            from prompts import sql_generation_prompt
+            
+            prompt = sql_generation_prompt.format(
+                schema_context=self.schema_context,
+                question=question
+            )
 
             response = self.llm.invoke(prompt)
             self.sql_query = self._strip_markdown(response.content)
@@ -85,7 +74,7 @@ might go by a different name in the database or not exist entirely.
 
 if __name__ == "__main__":
     tool = SQLTool()
-    test_question = "What are Barcelona's total wins, losses, draws, goals scored, and goals conceded in La Liga?"
+    test_question = "Which team has the most goals scored in the Bundesliga"
 
     print(f"Question: {test_question}\n")
     answer = tool.query(test_question)

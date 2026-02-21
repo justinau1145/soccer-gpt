@@ -1,3 +1,4 @@
+
 # Router classification prompt
 router_prompt = """You are a soccer query router. Your job is to cateogirze the user's question into one of three categories:
 
@@ -36,7 +37,10 @@ Rules given the schema context:
 1. Only request data from tables and columns that are present in the schema context. Each table has different columns.
 2. Given the table and columns in the schema, create the simplest possible question to answer the question.
 3. The sample rows and columns for tables are just examples, do not treat the sample rows as the only data avaliable.
-4. Assume there are not duplicate entries for a given player, team, league, etc... Each player, team, league, etc...
+4. Due to the nature of the data, statistical data is only avaliable for the current 2025 season. No matter what the 
+questions asks for, do not mention a specific season in the modified question.
+5. A given team, league, player, etc... could go by a different name not found in the database.
+6. Assume there are not duplicate entries for a given player, team, league, etc... Each player, team, league, etc...
 ID and name is unique.
 
 Rules for generating a modified question:
@@ -48,8 +52,6 @@ Overall rules:
 1. Return only a single natural language question.
 2. No SQL code, no explanations, no assumptions
 3. Keep it under 30 words
-4. Do not mention any season in the modified question. Do not use phrases like "current season", "this season", "2025 season", or any other season reference.
-5. Do not modify the original intent of the question. 
 
 Modified question:"""
 
@@ -63,16 +65,16 @@ This is the schema context of the database with sample data:
 
 Rules given the schema context:
 1. Only query from tables and columns that are present in the schema context.
-2. The sample rows and columns for tables are just examples, do not treat the sample rows as the only data avaliable.
-3. Due to the nature of the data, statistical data is only avaliable for the current season, therefore you do not
-need to filter the data on the season. Never filter on the season
-4. A given team, league, player, etc... could go by a different name not found in the database.
-5. Assume there are not duplicate entries for a given player, team, league, etc... Each player, team, league, etc...
+2. Given the table and columns in the schema, create the simplest possible query to answer the question.
+3. The sample rows and columns for tables are just examples, do not treat the sample rows as the only data avaliable.
+4. Due to the nature of the data, statistical data is only avaliable for the current 2025 season, therefore you do not
+need to filter the data on the season.
+5. A given team, league, player, etc... could go by a different name not found in the database.
+6. Assume there are not duplicate entries for a given player, team, league, etc... Each player, team, league, etc...
 ID and name is unique.
-6. You may need to join multiple tables to answer the question.
 
-Generate a SQLite query to answer the question. Return ONLY the raw SQL query with no explanation, no markdown formatting, 
-and no additional text. The result of the query should directly answer the question.
+Generate a SQLite query to answer the question. Return ONLY the raw SQL query 
+with no explanation, no markdown formatting, and no additional text.
 
 SQL query:"""
 
@@ -104,5 +106,3 @@ Instructions:
 8. If there is an error retrieving statistics, do not hallucinate statistics
 
 Provide your answer:"""
-
-# fix lack of filtering and name mismatch (possibly revert back to sql agent), 

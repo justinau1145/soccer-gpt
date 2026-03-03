@@ -19,9 +19,6 @@ class League(Base):
     name = Column(String(100), nullable=False)
     code = Column(String(10))
     country = Column(String(50))
-    emblem_url = Column(String(255))
-    current_season_start = Column(Date)
-    current_season_end = Column(Date)
     
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -43,10 +40,8 @@ class Team(Base):
     name = Column(String(100), nullable=False)
     short_name = Column(String(50))
     tla = Column(String(3))
-    crest_url = Column(String(255))
+    country = Column(String(50))
     venue = Column(String(100))
-    founded = Column(Integer)
-    website = Column(String(255))
     league_id = Column(Integer, ForeignKey('leagues.id'))
     league_name = Column(String(100))
     
@@ -70,10 +65,10 @@ class Player(Base):
     id = Column(Integer, primary_key=True)
     api_id = Column(Integer, unique=True, nullable=False, index=True)
     name = Column(String(100), nullable=False)
-    position = Column(String(50))
     date_of_birth = Column(Date)
     nationality = Column(String(50))
-    shirt_number = Column(Integer)
+    league_id = Column(Integer, ForeignKey('leagues.id'))
+    league_name = Column(String(100))
     team_id = Column(Integer, ForeignKey('teams.id'))
     team_name = Column(String(100))
     goals = Column(Integer, default=0)
@@ -146,7 +141,6 @@ class Standing(Base):
     goals_for = Column(Integer, default=0)
     goals_against = Column(Integer, default=0)
     goal_difference = Column(Integer, default=0)
-    form = Column(String(10))
     
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

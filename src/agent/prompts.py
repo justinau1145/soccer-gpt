@@ -45,36 +45,33 @@ Rules for generating a modified question:
 queries for useful statistics that will be combined with tactical analysis in a future step to help to solve the original question.
 
 Overall rules:
-1. Return only a single natural language question.
-2. No SQL code, no explanations, no assumptions
-3. Keep it under 30 words
-4. Do not mention any season in the modified question. Do not use phrases like "current season", "this season", "2025 season", or any other season reference.
-5. Do not modify the original intent of the question. 
+1. Do not modify the original intent of the question. 
+2. Return only a single natural language question.
+3. No SQL code, no explanations, no assumptions
+4. Keep it under 30 words
+5. Do not mention any season in the modified question. Do not use phrases like "current season", "this season", "2025 season", or any other season reference.
 
 Modified question:"""
 
-# SQL generation prompt
-sql_generation_prompt = """You are generating a SQL query based on the question:
+# SQL agent prefix
+prefix = """You are a SQL agent for a soccer database. Here is some guidance
 
-Question: {question}
+When performing sql_db_schema: view the schema of all the tables
 
-This is the schema context of the database with sample data:
-{schema_context}
+- For team statistics like points, wins, goals scored, goals conceded, etc...: use the 'standings' table
+- For individual player statistics: use the 'players' table
+- For specific match statistics like score: use the 'matches' table
+- When computing averages or divisions, always cast the numerator to a float to avoid integer truncation.
 
-Rules given the schema context:
-1. Only query from tables and columns that are present in the schema context.
-2. The sample rows and columns for tables are just examples, do not treat the sample rows as the only data avaliable.
-3. Due to the nature of the data, statistical data is only avaliable for the current season, therefore you do not
-need to filter the data on the season. Never filter on the season
-4. A given team, league, player, etc... could go by a different name not found in the database.
-5. Assume there are not duplicate entries for a given player, team, league, etc... Each player, team, league, etc...
-ID and name is unique.
-6. You may need to join multiple tables to answer the question.
+Team, league, and player name matching:
+- If initial query result is empty when filtering by team, league, or player, run a discovery query on 
+the 'players', 'teams', or 'leagues' table using adjacent information like country/ nationality on leagues, 
+teams, or players to find the correct name. Then use the correct name to answer the original question.
 
-Generate a SQLite query to answer the question. Return ONLY the raw SQL query with no explanation, no markdown formatting, 
-and no additional text. The result of the query should directly answer the question.
-
-SQL query:"""
+Ex: Original question: "What is Barcelona's and Real Madrid's total goal scored?"
+If initial query returns empty, run a discovery query like: 'SELECT * FROM teams WHERE country = "Spain";' to get correct team
+names for Barcelona and Real Madrid. Then use the correct names to answer the original question.
+"""
 
 # Synthesizer prompt for generating final answers
 synthesizer_prompt = """You are SoccerGPT, a world-class soccer analyst with expertise in both statistics and tactical analysis.
@@ -104,5 +101,3 @@ Instructions:
 8. If there is an error retrieving statistics, do not hallucinate statistics
 
 Provide your answer:"""
-
-# fix lack of filtering and name mismatch (possibly revert back to sql agent), 

@@ -24,11 +24,11 @@ class AgentState(TypedDict):
    vector_context: str
    refined_sql_question: str
 
-routing_llm = ChatGroq(model=os.getenv("GROQ_API_MODEL"), temperature=0,
+routing_llm = ChatGroq(model=os.getenv("GROQ_API_MODEL2"), temperature=0,
                        api_key=os.getenv("GROQ_API_KEY"))
-sql_llm = ChatGroq(model=os.getenv("GROQ_API_MODEL"), temperature=0,
+sql_llm = ChatGroq(model=os.getenv("GROQ_API_MODEL2"), temperature=0,
                    api_key=os.getenv("GROQ_API_KEY"))
-synthesizer_llm = ChatGroq(model=os.getenv("GROQ_API_MODEL"), temperature=0.5,
+synthesizer_llm = ChatGroq(model=os.getenv("GROQ_API_MODEL2"), temperature=0.5,
                            api_key=os.getenv("GROQ_API_KEY"))
 sql_tool = SQLTool()
 vector_tool = VectorTool()
@@ -66,7 +66,6 @@ def sql_node(state: AgentState):
 
    sql_result = sql_tool.query(refined_sql_question)
 
-   print(f"[DEBUG] SQL query: {sql_tool.sql_query}")
    print(f"[DEBUG] SQL result: {sql_result}\n")
    
    return {"sql_context": sql_result, "refined_sql_question": refined_sql_question}
@@ -137,7 +136,7 @@ soccer_gpt = workflow.compile()
 
 
 if __name__ == "__main__":
-   question = "Which player has the most goals in Ligue 1?"
+   question = "Who is the best player in the world?"
    response = soccer_gpt.invoke({
        "messages": [HumanMessage(content=question)]
    })

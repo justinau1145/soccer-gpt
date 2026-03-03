@@ -5,23 +5,28 @@ from sqlalchemy import create_engine
 from langchain_community.utilities import SQLDatabase
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
+from langchain_community.agent_toolkits import create_sql_agent
+from src.agent.prompts import prefix
 
 load_dotenv()
 
 
 class SQLTool:
     def __init__(self, db_path: str = "data/soccer.db"):
-        self.engine = create_engine(
-            f"sqlite:///{db_path}",
-            connect_args={"check_same_thread": False}
-        )
-        self.db = SQLDatabase(self.engine)
-        self.llm = ChatGroq(model=os.getenv("GROQ_API_MODEL"), temperature=0,
+        self.engine = create_engine(f"sqlite:///{db_path}", 
+                                    connect_args={"check_same_thread": False}) 
+        self.db = SQLDatabase(self.engine, sample_rows_in_table_info=0)                                  
+        
+        self.llm = ChatGroq(model=os.getenv("GROQ_API_MODEL1"), temperature=0,
                             api_key=os.getenv("GROQ_API_KEY"))
+        
         self.schema_context = self._build_schema_context()
-        self.sql_query = ""
 
-    def _build_schema_context(self) -> str:
+        self.agent = create_sql_agent(llm=self.llm, db=self.db, agent_type="zero-shot-react-description", 
+                                      verbose=True, handle_parsing_errors=True, max_iterations=10,
+                                      prefix=prefix)
+
+    def _build_schema_context(self):
         """Build comprehensive schema context with tables, columns, and sample data."""
         tables = self.db.get_usable_table_names()
         schema_parts = ["DATABASE SCHEMA:\n"]
@@ -32,52 +37,22 @@ class SQLTool:
 
         return "\n".join(schema_parts)
 
-    @staticmethod
-    def _strip_markdown(text: str) -> str:
-        """Strip markdown code fences from a string."""
-        return re.sub(r'```(?:sql)?\s*\n?(.*?)\n?```', r'\1', text, flags=re.DOTALL).strip()
 
-    @staticmethod
-    def _is_safe_query(sql: str) -> bool:
-        """Only allow SELECT statements to prevent destructive operations."""
-        return sql.strip().upper().startswith("SELECT")
-
-    def query(self, question: str) -> str:
+    def query(self, question: str):
         """
         Query the database with a natural language question.
         """
         try:
-            from prompts import sql_generation_prompt
-            
-            prompt = sql_generation_prompt.format(
-                schema_context=self.schema_context,
-                question=question
-            )
-
-            response = self.llm.invoke(prompt)
-            self.sql_query = self._strip_markdown(response.content)
-            
-            if not self._is_safe_query(self.sql_query):
-                return "Error: Only SELECT queries are permitted."
-
-            result = self.db.run(self.sql_query)
-
-            if result:
-                cleaned = str(result).strip("[]()").replace("'", "").replace('"', '').replace(',', '')
-                return cleaned.strip()
-            else:
-                return "No data found."
-
+            response = self.agent.invoke({"input": question})
+            return response.get("output", "No answer found.")
         except Exception as e:
-            return f"Database error occurred: {str(e)}"
+            return f"Error: {str(e)}"
 
 
 if __name__ == "__main__":
     tool = SQLTool()
-    test_question = "Which team has the most goals scored in the Bundesliga"
-
+    test_question = "Which team is currently top of the premier league right now?"
+    
     print(f"Question: {test_question}\n")
     answer = tool.query(test_question)
-    print(f"Schema context: {tool.schema_context}\n")
-    print(f"SQL Query: {tool.sql_query}\n")
     print(answer)

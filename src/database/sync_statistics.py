@@ -81,6 +81,7 @@ def sync_teams(league_code):
             existing_team.name = t['name']
             existing_team.short_name = t['shortName']
             existing_team.tla = t['tla']
+            existing_team.country = t['area']['name']
             existing_team.venue = t['venue']
             existing_team.league_id = league.id
             existing_team.league_name = league.name
@@ -90,6 +91,7 @@ def sync_teams(league_code):
                 name=t['name'],
                 short_name=t['shortName'],
                 tla=t['tla'],
+                country=t['area']['name'],
                 venue=t['venue'],
                 league_id=league.id,
                 league_name=league.name
@@ -99,8 +101,8 @@ def sync_teams(league_code):
     session.commit()
     print(f"Teams for {league_code} synced.")
 
-def sync_top_scorers(league_code):
-    """Syncs top scorers for a specific league."""
+def sync_players(league_code):
+    """Syncs players for a specific league."""
     data = fetch_data(f'competitions/{league_code}/scorers')
     if not data: return
     
@@ -125,8 +127,9 @@ def sync_top_scorers(league_code):
         
         if existing_player:
             existing_player.name = player_data['name']
-            existing_player.position = player_data.get('position')
             existing_player.nationality = player_data.get('nationality')
+            existing_player.league_id = league.id
+            existing_player.league_name = league.name
             existing_player.team_id = local_team_id
             existing_player.team_name = scorer['team']['name']
             existing_player.goals = scorer.get('goals', 0)
@@ -136,19 +139,20 @@ def sync_top_scorers(league_code):
             player = Player(
                 api_id=player_data['id'],
                 name=player_data['name'],
-                position=player_data.get('position'),
                 date_of_birth=datetime.strptime(player_data['dateOfBirth'], "%Y-%m-%d").date() if player_data.get('dateOfBirth') else None,
                 nationality=player_data.get('nationality'),
+                league_id=league.id,
+                league_name=league.name,
                 team_id=local_team_id,
                 team_name=scorer['team']['name'],
                 goals=scorer.get('goals', 0),
                 assists=scorer.get('assists', 0),
-                matches_played=scorer.get('playedMatches', 0)
+                matches_played=scorer.get('playedMatches', 0),
             )
             session.add(player)
     
     session.commit()
-    print(f"Top scorers for {league_code} synced successfully.")
+    print(f"Players for {league_code} synced successfully.")
 
 def sync_matches(league_code):
     """Syncs matches for a specific league."""
@@ -268,7 +272,6 @@ def sync_standings(league_code):
                 existing_standing.goals_for = entry['goalsFor']
                 existing_standing.goals_against = entry['goalsAgainst']
                 existing_standing.goal_difference = entry['goalDifference']
-                existing_standing.form = entry.get('form')
             else:
                 standing = Standing(
                     league_id=league.id,
@@ -286,8 +289,7 @@ def sync_standings(league_code):
                     points=entry['points'],
                     goals_for=entry['goalsFor'],
                     goals_against=entry['goalsAgainst'],
-                    goal_difference=entry['goalDifference'],
-                    form=entry.get('form')
+                    goal_difference=entry['goalDifference']
                 )
                 session.add(standing)
     
@@ -305,4 +307,4 @@ if __name__ == "__main__":
     sync_teams('PD')
     sync_matches('PD')
     sync_standings('PD')
-    sync_top_scorers('PD')
+    sync_players('PD')
